@@ -1,0 +1,626 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>WebWindows — Web OS Prototype</title>
+<style>
+  /* Basic reset */
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;font-family:Segoe UI,Roboto,Arial,sans-serif;background:#0078d7;color:#fff}
+  /* Desktop */
+  #desktop{position:relative;width:100%;height:100vh;overflow:hidden;background:linear-gradient(180deg,#0078d7 0%,#004a8f 100%);}
+  .wallpaper{position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);background-size:40px 40px}
+  /* Icons */
+  .icons{position:absolute;left:12px;top:12px;display:flex;flex-direction:column;gap:12px}
+  .icon{width:84px;color:#fff;text-align:center;cursor:pointer}
+  .icon img{width:48px;height:48px;display:block;margin:0 auto 6px}
+  /* Taskbar */
+  #taskbar{position:fixed;left:0;right:0;bottom:0;height:40px;background:rgba(10,10,10,0.45);backdrop-filter:blur(6px);display:flex;align-items:center;padding:4px}
+  #startBtn{width:40px;height:32px;margin:0 8px;border-radius:6px;background:transparent;border:0;color:#fff;cursor:pointer}
+  #taskbar .tasks{display:flex;gap:6px;flex:1}
+  .task-btn{min-width:80px;padding:6px 10px;border-radius:6px;background:rgba(255,255,255,0.04);cursor:pointer}
+  /* Window system */
+  .win{position:absolute;background:#f3f3f3;color:#000;border-radius:6px;box-shadow:0 8px 30px rgba(0,0,0,0.5);overflow:hidden;display:flex;flex-direction:column}
+  .titlebar{display:flex;align-items:center;padding:8px 10px;background:linear-gradient(180deg,#e9e9e9,#dcdcdc);cursor:grab}
+  .title{flex:1;font-weight:600}
+  .controls button{margin-left:6px}
+  .content{flex:1;padding:12px;background:#fff;overflow:auto}
+  /* Start menu */
+  startBtn.onclick = () => {
+  // Win8.1 style Start: full-screen tiles with animation
+  startMenu.style.display = 'block';
+  requestAnimationFrame(()=> startMenu.classList.add('open'));
+  // populate tiles dynamically
+  const tilesHtml = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px"><div style="font-size:20px;font-weight:700">Приложения</div><div><button id='closeStart'>Закрыть</button></div></div>
+    <div class='tiles'>
+      <div class='tile' data-app='explorer'>Проводник</div>
+      <div class='tile' data-app='notepad'>Блокнот</div>
+      <div class='tile' data-app='calc'>Калькулятор</div>
+      <div class='tile' data-app='terminal'>Терминал</div>
+      <div class='tile' data-app='settings'>Настройки</div>
+      <div class='tile' id='tile-edge'>Edge (браузер)</div>
+    </div>
+    <div class='recent'>Недавние файлы и приложения будут здесь</div>
+  `;
+  startMenu.innerHTML = tilesHtml;
+  // attach tile handlers
+  startMenu.querySelectorAll('.tile[data-app]').forEach(t=> t.addEventListener('click', ()=>{ openApp(t.dataset.app); startMenu.classList.remove('open'); setTimeout(()=>startMenu.style.display='none',300); }));
+  document.getElementById('tile-edge').addEventListener('click', ()=>{ openBrowser(); startMenu.classList.remove('open'); setTimeout(()=>startMenu.style.display='none',300); });
+  document.getElementById('closeStart').addEventListener('click', ()=>{ startMenu.classList.remove('open'); setTimeout(()=>startMenu.style.display='none',300); });
+};
+  #startMenu h3{margin:6px 0}
+  .app-list{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .app-card{padding:8px;border-radius:6px;background:rgba(0,0,0,0.03);cursor:pointer}
+  /* simple file explorer */
+  .file{padding:6px;border-radius:4px;background:rgba(0,0,0,0.02);margin-bottom:6px;display:flex;justify-content:space-between}
+  input,textarea,button{font-family:inherit}
+  /* responsiveness */
+  @media (max-width:600px){#startMenu{width:90%}}
+</style>
+</head>
+<body>
+<div id="desktop">
+  <div class="wallpaper"></div>
+  <div class="icons" id="icons">
+    <div class="icon" data-app="explorer"><img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48'><rect rx='4' width='48' height='48' fill='%23ffffff' opacity='0.2'/><path d='M8 14h32v20H8z' fill='%23fff' opacity='0.9'/></svg>"/><div>Проводник</div></div>
+    <div class="icon" data-app="notepad"><img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48'><rect rx='4' width='48' height='48' fill='%23fff' opacity='0.12'/><path d='M12 14h24v2H12zM12 18h24v2H12z' fill='%23fff' opacity='0.9'/></svg>"/><div>Блокнот</div></div>
+    <div class="icon" data-app="calc"><img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48'><rect rx='4' width='48' height='48' fill='%23fff' opacity='0.12'/><circle cx='24' cy='20' r='6' fill='%23fff' opacity='0.9'/></svg>"/><div>Кальк</div></div>
+    <div class="icon" data-app="terminal"><img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48'><rect rx='4' width='48' height='48' fill='%23fff' opacity='0.12'/><path d='M12 18l6 6 6-6' stroke='%23fff' stroke-width='2' fill='none' opacity='0.9'/></svg>"/><div>Терминал</div></div>
+  </div>
+
+  <div id="taskbar">
+    <button id="startBtn">☰</button>
+    <div class="tasks" id="taskContainer"></div>
+    <div style="width:220px;text-align:right;padding-right:8px"> <span id="clock"></span></div>
+  </div>
+
+  <div id="startMenu">
+    <h3>Меню Пуск</h3>
+    <div class="app-list">
+      <div class="app-card" data-app="explorer">Проводник</div>
+      <div class="app-card" data-app="notepad">Блокнот</div>
+      <div class="app-card" data-app="calc">Калькулятор</div>
+      <div class="app-card" data-app="terminal">Терминал</div>
+      <div class="app-card" id="settingsBtn">Настройки</div>
+      <div class="app-card" id="shutdownBtn">Выключить (reload)</div>
+    </div>
+  </div>
+</div>
+
+<script>
+/*
+  WebWindows — prototype web "operating system"
+  Features included in this single-file demo:
+   - Desktop with icons
+   - Taskbar + Start menu
+   - Window manager with move/resize/minimize/maximize/close
+   - Simple apps: File Explorer (in-memory FS), Notepad, Calculator, Terminal (fake), Settings
+   - Persistent storage via localStorage
+   - Basic keyboard shortcuts: Win (Meta) to toggle Start, Alt+Tab (limited)
+
+  Limitations:
+   - This is a UI-level prototype, not a real OS.
+   - Security, multi-user, drivers, real process isolation are not implemented.
+   - File operations are limited to virtual filesystem stored in localStorage.
+*/
+
+// Utilities
+const $ = sel => document.querySelector(sel);
+const desktop = $('#desktop');
+const startBtn = $('#startBtn');
+const startMenu = $('#startMenu');
+const taskContainer = $('#taskContainer');
+const icons = document.getElementById('icons');
+const clockEl = $('#clock');
+
+let zIndex = 10;
+let winId = 0;
+const windows = {};
+
+// Simple persistent virtual filesystem using localStorage
+const FS_KEY = 'webwin_fs_v1';
+let FS = JSON.parse(localStorage.getItem(FS_KEY) || '{}');
+if(!FS['root']) FS['root'] = {type:'dir',children:{'readme.txt':{type:'file',content:'Добро пожаловать в WebWindows!\nСохранение: localStorage.'}}};
+
+function saveFS(){ localStorage.setItem(FS_KEY, JSON.stringify(FS)); }
+
+// Clock
+function updateClock(){ const d=new Date(); clockEl.textContent = d.toLocaleString(); }
+setInterval(updateClock,1000); updateClock();
+
+// Start menu
+startBtn.addEventListener('click', e=>{ startMenu.style.display = startMenu.style.display === 'block' ? 'none' : 'block'; });
+document.addEventListener('click', e=>{ if(!startMenu.contains(e.target) && e.target!==startBtn) startMenu.style.display='none'; });
+
+// Open app from icons or start menu
+function initLaunchers(){
+  document.querySelectorAll('[data-app]').forEach(el=>{
+    el.addEventListener('dblclick', ()=>openApp(el.dataset.app));
+    el.addEventListener('click', ()=>{
+      // single click shows selection
+      document.querySelectorAll('.icon').forEach(i=>i.style.outline='');
+      el.style.outline='2px solid rgba(255,255,255,0.2)';
+    });
+  });
+  document.querySelectorAll('.app-card').forEach(el=>el.addEventListener('click', ()=>openApp(el.dataset.app || el.id.replace('Btn',''))));
+}
+
+// Taskbar
+function addTask(title,id){ const btn = document.createElement('div'); btn.className='task-btn'; btn.textContent = title; btn.dataset.win=id; btn.addEventListener('click', ()=>{
+  const w = windows[id]; if(!w) return; if(w.minimized){ w.minimized=false; w.el.style.display='flex'; } focusWindow(id);
+}); taskContainer.appendChild(btn); }
+function removeTask(id){ const b = taskContainer.querySelector('[data-win="'+id+'"]'); if(b) b.remove(); }
+
+// Window manager
+function createWindow(title,opts={width:540,height:360,x:80,y:80}){
+  const id = 'win_'+(++winId);
+  const el = document.createElement('div'); el.className='win'; el.style.width = opts.width+'px'; el.style.height = opts.height+'px'; el.style.left = opts.x+'px'; el.style.top = opts.y+'px'; el.style.zIndex = (++zIndex);
+  el.innerHTML = `
+    <div class="titlebar"><div class="title">${title}</div><div class="controls"><button data-action="min">_</button><button data-action="max">▣</button><button data-action="close">✕</button></div></div>
+    <div class="content"></div>
+  `;
+  desktop.appendChild(el);
+  windows[id] = {id,el,title,minimized:false,maximized:false};
+  // events
+  const titlebar = el.querySelector('.titlebar');
+  titlebar.addEventListener('pointerdown', startDrag);
+  el.querySelector('[data-action="close"]').addEventListener('click', ()=>closeWindow(id));
+  el.querySelector('[data-action="min"]').addEventListener('click', ()=>minimizeWindow(id));
+  el.querySelector('[data-action="max"]').addEventListener('click', ()=>toggleMaximize(id));
+  el.addEventListener('mousedown', ()=>focusWindow(id));
+  addTask(title,id);
+  focusWindow(id);
+  return id;
+}
+
+function focusWindow(id){ const w = windows[id]; if(!w) return; Object.values(windows).forEach(x=>x.el.style.boxShadow='0 8px 30px rgba(0,0,0,0.5)'); w.el.style.zIndex = ++zIndex; w.el.style.boxShadow='0 18px 60px rgba(0,0,0,0.6)'; }
+function closeWindow(id){ const w = windows[id]; if(!w) return; w.el.remove(); delete windows[id]; removeTask(id); }
+function minimizeWindow(id){ const w = windows[id]; if(!w) return; w.minimized = true; w.el.style.display='none'; }
+function toggleMaximize(id){ const w = windows[id]; if(!w) return; if(!w.maximized){ w.prev = {left:w.el.style.left,top:w.el.style.top,width:w.el.style.width,height:w.el.style.height}; w.el.style.left='0px'; w.el.style.top='0px'; w.el.style.width='100%'; w.el.style.height='calc(100vh - 48px)'; w.maximized=true; } else { w.el.style.left = w.prev.left; w.el.style.top = w.prev.top; w.el.style.width = w.prev.width; w.el.style.height = w.prev.height; w.maximized=false; } }
+
+// Dragging
+function startDrag(e){ const winEl = this.closest('.win'); const id = Object.keys(windows).find(k=>windows[k].el===winEl); focusWindow(id);
+  const rect = winEl.getBoundingClientRect(); const ox = e.clientX - rect.left; const oy = e.clientY - rect.top;
+  function move(ev){ winEl.style.left = (ev.clientX - ox) + 'px'; winEl.style.top = (ev.clientY - oy) + 'px'; }
+  function up(){ window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); winEl.style.cursor='default'; }
+  window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+}
+
+// Apps implementations
+function openApp(name){ if(name==='explorer') openExplorer(); if(name==='notepad') openNotepad(); if(name==='calc') openCalc(); if(name==='terminal') openTerminal(); if(name==='settings') openSettings(); if(name==='shutdownBtn') location.reload(); }
+
+// Explorer
+function openExplorer(){ const id = createWindow('Проводник',{width:600,height:420,x:120,y:80}); const content = windows[id].el.querySelector('.content');
+  function renderDir(pathObj){ content.innerHTML = '';
+    const list = document.createElement('div');
+    const entries = Object.entries(pathObj.children||{});
+    if(entries.length===0) list.innerHTML='<em>Пусто</em>';
+    entries.forEach(([name,node])=>{
+      const el = document.createElement('div'); el.className='file'; el.innerHTML = `<div>${name}</div><div>${node.type}</div>`;
+      el.addEventListener('dblclick', ()=>{
+        if(node.type==='file') openNotepad(name,node.content);
+      });
+      const actions = document.createElement('div');
+      const del = document.createElement('button'); del.textContent='Удалить'; del.addEventListener('click', ()=>{ delete pathObj.children[name]; saveFS(); renderDir(pathObj); });
+      actions.appendChild(del); el.appendChild(actions);
+      list.appendChild(el);
+    });
+    const createBtn = document.createElement('button'); createBtn.textContent='Создать файл'; createBtn.addEventListener('click', ()=>{
+      const fname = prompt('Имя файла (например note.txt)'); if(!fname) return; pathObj.children[fname]={type:'file',content:''}; saveFS(); renderDir(pathObj);
+    });
+    content.appendChild(createBtn); content.appendChild(list);
+  }
+  renderDir(FS['root']);
+}
+
+// Notepad
+function openNotepad(name='Новый файл', contentText=''){
+  const id = createWindow(name,{width:560,height:420,x:160,y:120}); const content = windows[id].el.querySelector('.content');
+  content.innerHTML = `<div style="display:flex;flex-direction:column;height:100%"><textarea style="flex:1;width:100%;min-height:180px;padding:8px" placeholder="Введите текст...">${contentText}</textarea><div style="display:flex;gap:8px;margin-top:8px"><button id='saveFile'>Сохранить в FS</button><button id='close'>Закр</button></div></div>`;
+  const ta = content.querySelector('textarea'); content.querySelector('#saveFile').addEventListener('click', ()=>{
+    const fname = prompt('Имя файла для сохранения','note.txt'); if(!fname) return; FS['root'].children[fname]={type:'file',content:ta.value}; saveFS(); alert('Сохранено: '+fname);
+  });
+  content.querySelector('#close').addEventListener('click', ()=>closeWindow(id));
+}
+
+// Calculator
+function openCalc(){ const id = createWindow('Калькулятор',{width:320,height:420,x:220,y:140}); const content = windows[id].el.querySelector('.content');
+  content.innerHTML = `<div><input id='calcIn' style='width:100%;padding:8px;font-size:18px'/><div style='display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px'>${['7','8','9','/','4','5','6','*','1','2','3','-','0','.','=','+'].map(x=>`<button class='btn'>${x}</button>`).join('')}</div></div>`;
+  const input = content.querySelector('#calcIn'); content.querySelectorAll('.btn').forEach(b=>b.addEventListener('click', ()=>{ if(b.textContent==='='){ try{ input.value = eval(input.value); }catch(e){ alert('Ошибка'); } } else input.value += b.textContent; }));
+}
+
+// Terminal (fake)
+function openTerminal(){ const id = createWindow('Терминал',{width:560,height:320,x:260,y:160}); const content = windows[id].el.querySelector('.content');
+  content.innerHTML = `<div style='display:flex;flex-direction:column;height:100%'><div id='out' style='flex:1;background:#000;color:#0f0;padding:8px;overflow:auto;font-family:monospace'></div><div style='display:flex;gap:6px;margin-top:8px'><input id='cmd' style='flex:1' placeholder='help'/><button id='run'>Run</button></div></div>`;
+  const out = content.querySelector('#out'), cmd = content.querySelector('#cmd');
+  function run(){ const v = cmd.value.trim(); if(!v) return; out.innerHTML += `> ${v}\n`;
+    // fake commands
+    if(v==='help') out.innerHTML += 'help: ls cat clear date\n';
+    else if(v==='ls') out.innerHTML += Object.keys(FS['root'].children||{}).join('\n')+'\n';
+    else if(v.startsWith('cat ')){ const name=v.slice(4); const file=FS['root'].children[name]; out.innerHTML += (file?file.content:'Файл не найден')+'\n'; }
+    else if(v==='clear') out.innerHTML='';
+    else if(v==='date') out.innerHTML += new Date().toString()+'\n';
+    else out.innerHTML += 'Неизвестная команда\n';
+    out.scrollTop = out.scrollHeight;
+  }
+  content.querySelector('#run').addEventListener('click', run); cmd.addEventListener('keydown', e=>{ if(e.key==='Enter') run(); });
+}
+
+// Settings
+function openSettings(){ const id = createWindow('Настройки',{width:420,height:320,x:180,y:160}); const content = windows[id].el.querySelector('.content');
+  content.innerHTML = `
+    <div>
+      <label>Тема: <select id='theme'><option value='blue'>Синий</option><option value='dark'>Тёмная</option></select></label>
+      <div style='margin-top:10px'><button id='clearFS'>Очистить FS</button></div>
+    </div>
+  `;
+  content.querySelector('#clearFS').addEventListener('click', ()=>{ if(confirm('Очистить виртуальную файловую систему?')){ FS={'root':{type:'dir',children:{}}}; saveFS(); alert('FS очищена'); }});
+  content.querySelector('#theme').addEventListener('change', (e)=>{
+    if(e.target.value==='dark'){ document.documentElement.style.setProperty('--bg','#111'); document.body.style.background='#111'; } else { document.body.style.background=''; }
+  });
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e=>{
+  if(e.key==='Meta') { startMenu.style.display = startMenu.style.display==='block'?'none':'block'; }
+  if(e.altKey && e.key==='Tab'){ // simple alt-tab
+    const keys = Object.keys(windows); if(keys.length>1){ focusWindow(keys[1]); }
+  }
+});
+
+// Initialize
+initLaunchers();
+
+// Expose a simple API to open apps programmatically
+window.WebWindows = {openApp, createWindow, FS, saveFS};
+
+// --- Added: window animations, LogonUI, BSOD logic ---
+
+// CSS injection for animations
+const animStyle = document.createElement('style');
+animStyle.textContent = `
+  .win {
+    opacity: 0;
+    transform: scale(0.9);
+    transition: opacity .25s ease, transform .25s ease;
+  }
+  .win.show { opacity:1; transform:scale(1); }
+  #logonUI{
+    position:fixed;inset:0;background:#0b0f18;display:flex;flex-direction:column;align-items:center;justify-content:center;color:white;font-size:24px;z-index:10000;
+  }
+  #logonUI input{padding:10px;font-size:18px;margin-top:12px} 
+  #bsod{position:fixed;inset:0;background:#0000aa;color:#fff;padding:40px;font-size:26px;line-height:1.4;z-index:10001;display:none;font-family:Consolas,monospace;}
+`;
+document.head.appendChild(animStyle);
+
+// Create LogonUI
+const logon = document.createElement('div');
+logon.id = 'logonUI';
+logon.innerHTML = "<div>WebWindows</div><input id='pwd' type='password' placeholder='Введите пароль'/>";
+document.body.appendChild(logon);
+$('#pwd').addEventListener('keydown',e=>{ if(e.key==='Enter'){ logon.remove(); }});
+
+// Add BSOD screen
+const bsod = document.createElement('div');
+bsod.id='bsod';
+bosod_html = `WebWindows обнаружила критическую ошибку.
+
+STOP: CLEAR_C_DRIVE_FAILURE`;
+bsod.textContent = bosod_html;
+document.body.appendChild(bsod);
+
+// Modify createWindow to animate
+const __origCreateWindow = createWindow;
+createWindow = function(title,opts){
+  const id = __origCreateWindow(title,opts);
+  setTimeout(()=> windows[id].el.classList.add('show'),10);
+  return id;
+};
+
+// Modify Terminal: trigger BSOD on "clear C:/"
+const __origOpenTerminal = openTerminal;
+openTerminal = function(){
+  __origOpenTerminal();
+  const ids = Object.keys(windows);
+  const id = ids[ids.length-1];
+  const content = windows[id].el.querySelector('.content');
+  const out = content.querySelector('#out');
+  const cmd = content.querySelector('#cmd');
+  const run = content.querySelector('#run');
+  function checkBSOD(v){
+    if(v.toLowerCase().includes('clear c:/')){
+      bsod.style.display='block';
+    }
+  }
+  const orig = ()=>{};
+  run.addEventListener('click',()=> checkBSOD(cmd.value));
+  cmd.addEventListener('keydown',e=>{ if(e.key==='Enter') checkBSOD(cmd.value); });
+};
+// --- Enhancements: Win11 minimize animation, Start Menu Win8.1, EXE support, Edge browser ---
+const extraStyle=document.createElement('style');extraStyle.textContent=`
+  .win.minimizeAnim{animation:min2corner .35s ease forwards;}
+  @keyframes min2corner{to{transform:scale(.1) translate(600px,300px);opacity:0;}}
+  #startMenu{transition:all .35s ease;transform-origin:bottom left;}
+  #startMenu.open{transform:scale(1);opacity:1;}
+  #startMenu{transform:scale(.6);opacity:0;}
+`;document.head.appendChild(extraStyle);
+
+// override minimize
+const __min=minimizeWindow;minimizeWindow=function(id){const w=windows[id];if(!w)return;w.el.classList.add('minimizeAnim');setTimeout(()=>{w.el.style.display='none';w.el.classList.remove('minimizeAnim');w.minimized=true;},320);} ;
+
+// Start menu Win8.1 style
+startBtn.onclick=()=>{startMenu.classList.toggle('open');startMenu.style.display='block';if(!startMenu.classList.contains('open'))setTimeout(()=>startMenu.style.display='none',300);} ;
+
+// EXE support: create .exe file then open URL in embedded window
+function openEXE(url){const id=createWindow('EXE',{width:700,height:500,x:120,y:120});windows[id].el.querySelector('.content').innerHTML=`<iframe src="${url}" style="width:100%;height:100%;border:0"></iframe>`;}
+
+// extend explorer creation
+(function(){const orig=openExplorer;openExplorer=function(){orig();const id=Object.keys(windows).pop();const cont=windows[id].el.querySelector('.content');const exeBtn=document.createElement('button');exeBtn.textContent='Создать EXE';exeBtn.onclick=()=>{const name=prompt('Имя файла','app.exe');const link=prompt('HTTPS ссылка');if(name&&link){FS.root.children[name]={type:'exe',url:link};saveFS();openEXE(link);} };cont.prepend(exeBtn);} })();
+
+// Add Edge browser
+function openBrowser(url='https://www.bing.com'){const id=createWindow('Edge',{width:900,height:600,x:160,y:80});windows[id].el.querySelector('.content').innerHTML=`<iframe src="${url}" style="width:100%;height:100%;border:0"></iframe>`;}
+window.WebWindows.openBrowser=openBrowser;
+
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+// --- Live tiles, drag'n'drop, grouping, and iframe preview captures ---
+(function(){
+  // Tile configuration stored in localStorage
+  const TKEY = 'webwin_tiles_v1';
+  let tiles = JSON.parse(localStorage.getItem(TKEY) || 'null') || [
+    {id:'tile-explorer',label:'Проводник',app:'explorer',live:'count'},
+    {id:'tile-notepad',label:'Блокнот',app:'notepad',live:'clock'},
+    {id:'tile-calc',label:'Калькулятор',app:'calc',live:'random'},
+    {id:'tile-term',label:'Терминал',app:'terminal',live:''},
+    {id:'tile-edge',label:'Edge',app:'edge',live:'url'},
+    {id:'tile-settings',label:'Настройки',app:'settings',live:''}
+  ];
+  let groups = JSON.parse(localStorage.getItem('webwin_tile_groups') || 'null') || [{name:'Apps', ids: tiles.map(t=>t.id)}];
+
+  function save(){ localStorage.setItem(TKEY, JSON.stringify(tiles)); localStorage.setItem('webwin_tile_groups', JSON.stringify(groups)); }
+
+  // helper to render tiles in start menu
+  function buildStartMenu(){
+    const sm = document.getElementById('startMenu');
+    sm.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px"><div style="font-size:20px;font-weight:700">Приложения</div><div><button id='closeStart'>Закрыть</button></div></div>
+      <div id='groups'></div>
+      <div class='recent' style='margin-top:18px;color:rgba(255,255,255,0.7);font-size:14px'>Недавние файлы и приложения</div>
+    `;
+    const groupsHost = sm.querySelector('#groups');
+    groups.forEach((g,gi)=>{
+      const gEl = document.createElement('div'); gEl.style.marginBottom='18px'; gEl.innerHTML = `<div style='font-weight:700;margin-bottom:8px'>${g.name}</div><div class='tiles' data-group='${gi}'></div>`;
+      groupsHost.appendChild(gEl);
+      const tilesHost = gEl.querySelector('.tiles');
+      g.ids.forEach(id=>{
+        const t = tiles.find(x=>x.id===id); if(!t) return;
+        const tile = document.createElement('div'); tile.className='tile'; tile.draggable=true; tile.dataset.id=t.id; tile.innerHTML = `<div style='font-size:14px;font-weight:600'>${t.label}</div><div class='tile-live' style='margin-top:8px;font-size:12px;opacity:.9'></div>`;
+        // click to launch
+        tile.addEventListener('click', (e)=>{ e.stopPropagation(); if(t.app==='edge') openBrowser(); else openApp(t.app); hideStart(); });
+        // live content updater
+        startTileUpdater(tile,t);
+        // drag & drop
+        tile.addEventListener('dragstart', (ev)=>{ ev.dataTransfer.setData('text/tile', t.id); ev.dataTransfer.effectAllowed='move'; tile.classList.add('dragging'); });
+        tile.addEventListener('dragend', ()=>{ tile.classList.remove('dragging'); save(); buildStartMenu(); });
+        tilesHost.appendChild(tile);
+      });
+      // allow drop to reorder or move between groups
+      tilesHost.addEventListener('dragover', (ev)=>{ ev.preventDefault(); tilesHost.classList.add('drag-over'); });
+      tilesHost.addEventListener('dragleave', ()=> tilesHost.classList.remove('drag-over'));
+      tilesHost.addEventListener('drop', (ev)=>{
+        ev.preventDefault(); tilesHost.classList.remove('drag-over'); const id = ev.dataTransfer.getData('text/tile'); if(!id) return;
+        // remove from all groups
+        groups.forEach(g=>{ g.ids = g.ids.filter(x=>x!==id); });
+        // insert in this group's ids at end
+        const idx = parseInt(tilesHost.dataset.group,10); groups[idx].ids.push(id);
+        save(); buildStartMenu();
+      });
+    });
+    // allow creating new group by dragging a tile onto empty space
+    const closeBtn = document.getElementById('closeStart'); closeBtn.addEventListener('click', hideStart);
+  }
+
+  function hideStart(){ const sm=document.getElementById('startMenu'); sm.classList.remove('open'); setTimeout(()=>sm.style.display='none',300); }
+
+  function startTileUpdater(tileObj, tcfg){ // update live content depending on tcfg.live
+    const live = tileObj.querySelector('.tile-live');
+    function update(){
+      if(tcfg.live==='clock') live.textContent = new Date().toLocaleTimeString();
+      else if(tcfg.live==='count'){ live.textContent = 'Items: ' + Object.keys(FS['root'].children||{}).length; }
+      else if(tcfg.live==='random'){ live.textContent = 'Val: ' + Math.floor(Math.random()*100); }
+      else if(tcfg.live==='url'){ live.textContent = tcfg.url? tcfg.url.replace(/^https?:\/\//,'') : 'Edge'; }
+      else live.textContent = '';
+    }
+    update(); const iv = setInterval(update,1000);
+    // store interval to element so we can clear when menu rebuilt
+    tileObj._iv = iv;
+  }
+
+  // replace start button behavior to build dynamic tiles
+  startBtn.onclick = ()=>{
+    const sm = document.getElementById('startMenu'); sm.style.display='block'; requestAnimationFrame(()=> sm.classList.add('open'));
+    buildStartMenu();
+  };
+
+  // expose functions to allow tile modifications
+  window.WebWindows.addTile = function(cfg){ tiles.push(cfg); save(); };
+  window.WebWindows.createGroup = function(name,ids){ groups.push({name,ids}); save(); };
+
+  // when creating EXE, link into tiles if desired
+  const origOpenExplorer = openExplorer;
+  openExplorer = function(){ origOpenExplorer(); };
+
+  // EDGE browser open function sets lastVisited for previews
+  const origOpenBrowser = window.WebWindows && window.WebWindows.openBrowser ? window.WebWindows.openBrowser : null;
+  function openBrowserWrapped(url){ const u = url||'https://www.bing.com'; const id = createWindow('Edge',{width:900,height:600,x:160,y:80}); const cont = windows[id].el.querySelector('.content'); cont.innerHTML = `<iframe class='edgeFrame' src='${u}' style='width:100%;height:100%;border:0'></iframe>`;
+    // after load try to capture screenshot for preview
+    const iframe = cont.querySelector('iframe'); iframe.addEventListener('load', ()=>{
+      setTimeout(()=> captureIframePreview(id),800);
+    });
+    return id;
+  }
+  window.WebWindows.openBrowser = openBrowserWrapped;
+
+  // Task preview captures: when creating task button, attach hover capture
+  const origAddTask = addTask;
+  addTask = function(title,id){ origAddTask(title,id);
+    const btn = taskContainer.querySelector('[data-win="'+id+'"]'); if(!btn) return; const preview = btn.querySelector('.task-preview') || (()=>{ const p=document.createElement('div'); p.className='task-preview'; btn.appendChild(p); return p; })();
+    btn.addEventListener('mouseenter', async ()=>{
+      // try to show cached preview image
+      const key = 'preview_'+id;
+      const data = localStorage.getItem(key);
+      if(data){ preview.style.display='block'; preview.innerHTML = `<img src='${data}' style='width:100%;height:100%;object-fit:cover' />`; return; }
+      // attempt capture
+      try{ await captureIframePreview(id); const d2 = localStorage.getItem(key); if(d2){ preview.style.display='block'; preview.innerHTML = `<img src='${d2}' style='width:100%;height:100%;object-fit:cover' />`; } else { preview.style.display='block'; preview.innerHTML = '<div style="padding:8px">Preview unavailable (CORS)</div>'; } } catch(e){ preview.style.display='block'; preview.innerHTML = '<div style="padding:8px">Preview failed</div>'; }
+    });
+    btn.addEventListener('mouseleave', ()=>{ hidePreview(preview); });
+  };
+
+  // capture iframe preview (tries html2canvas on iframe's document.body). Falls back to placeholder
+  async function captureIframePreview(winId){ const w=windows[winId]; if(!w) return null; const iframe = w.el.querySelector('iframe'); if(!iframe) return null;
+    try{
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+      // try to use html2canvas on the iframe's body
+      const body = iframeDoc.body;
+      if(!body) throw new Error('no body');
+      const canvas = await html2canvas(body, {useCORS:true,logging:false});
+      const data = canvas.toDataURL('image/png'); localStorage.setItem('preview_'+winId, data); return data;
+    } catch(err){
+      // likely CORS. create placeholder image with site hostname
+      try{
+        const host = (new URL(iframe.src)).hostname;
+        const cvs = document.createElement('canvas'); cvs.width=300; cvs.height=180; const ctx=cvs.getContext('2d'); ctx.fillStyle='#ddd'; ctx.fillRect(0,0,cvs.width,cvs.height); ctx.fillStyle='#000'; ctx.font='14px sans-serif'; ctx.fillText(host,12,40); const data=cvs.toDataURL('image/png'); localStorage.setItem('preview_'+winId,data); return data;
+      }catch(e){return null;}
+    }
+  }
+
+  // utility: hide preview
+  function hidePreview(previewEl){ previewEl.style.display='none'; }
+
+  // initial save to ensure keys exist
+  save();
+})();
+</script>
+
+<!-- Enhancement: Improved Win8-style Start Screen UI, tile sizes, grouping, live tiles, drag-reorder within group -->
+<style>
+  /* Win8-style tiles grid and sizes */
+  #startMenu .tiles{display:grid;grid-auto-flow:row dense;grid-gap:12px}
+  .tile.small{width:80px;height:80px}
+  .tile.medium{width:160px;height:80px}
+  .tile.wide{width:330px;height:80px}
+  .tile.large{width:330px;height:170px}
+  .tile{display:flex;flex-direction:column;justify-content:center;align-items:flex-start;padding:12px;color:#fff;border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,0.3);transition:transform .18s ease,box-shadow .18s ease,background .18s ease;cursor:grab}
+  .tile .label{font-weight:700;font-size:14px}
+  .tile .live{font-size:12px;opacity:0.9;margin-top:6px}
+  .tile:active{cursor:grabbing}
+  .tile.placeholder{background:rgba(255,255,255,0.06);border:2px dashed rgba(255,255,255,0.12)}
+  #startMenu .group{margin-bottom:22px}
+  #startMenu .group-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  #startMenu .group-name{font-size:16px;font-weight:700}
+  /* Acrylic backdrop */
+  #startMenu.open{backdrop-filter: blur(6px);}
+</style>
+
+<script>
+(function(){
+  // Re-use existing tile/group storage or initialize
+  const TKEY = 'webwin_tiles_v1';
+  const GKEY = 'webwin_tile_groups';
+  let tiles = JSON.parse(localStorage.getItem(TKEY) || 'null') || [];
+  if(!tiles || tiles.length===0){ tiles = [
+    {id:'t_explorer',label:'Проводник',app:'explorer',size:'medium',color:'#0078D7',live:'count'},
+    {id:'t_notepad',label:'Блокнот',app:'notepad',size:'medium',color:'#2D7D9A',live:'clock'},
+    {id:'t_calc',label:'Калькулятор',app:'calc',size:'small',color:'#8A2BE2',live:'random'},
+    {id:'t_terminal',label:'Терминал',app:'terminal',size:'small',color:'#444',live:''},
+    {id:'t_edge',label:'Edge',app:'edge',size:'wide',color:'#0A84FF',live:'url'},
+    {id:'t_settings',label:'Настройки',app:'settings',size:'small',color:'#00A300',live:''}
+  ]; localStorage.setItem(TKEY, JSON.stringify(tiles)); }
+  let groups = JSON.parse(localStorage.getItem(GKEY) || 'null') || [{name:'Apps', ids: tiles.map(t=>t.id)}];
+  function save(){ localStorage.setItem(TKEY, JSON.stringify(tiles)); localStorage.setItem(GKEY, JSON.stringify(groups)); }
+
+  // Helpers
+  function findTile(id){ return tiles.find(t=>t.id===id); }
+  function createTileElement(t){ const el = document.createElement('div'); el.className = 'tile '+(t.size||'medium'); el.dataset.id = t.id; el.style.background = t.color||'rgba(255,255,255,0.06)'; el.innerHTML = `<div class='label'>${t.label}</div><div class='live'></div>`; return el; }
+
+  // Build enhanced start UI
+  function buildEnhancedStart(){
+    const sm = document.getElementById('startMenu');
+    sm.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px"><div style="font-size:20px;font-weight:700">Приложения</div><div><button id='closeStart'>Закрыть</button></div></div><div id='groupsHost'></div><div class='recent' style='margin-top:18px;color:rgba(255,255,255,0.7);font-size:14px'>Недавние</div>`;
+    const gh = sm.querySelector('#groupsHost');
+    groups.forEach((g,gi)=>{
+      const gEl = document.createElement('div'); gEl.className='group';
+      gEl.innerHTML = `<div class='group-header'><div class='group-name' data-gi='${gi}'>${g.name}</div><div><button class='rename-group' data-gi='${gi}'>Переименовать</button></div></div><div class='tiles' data-gi='${gi}'></div>`;
+      gh.appendChild(gEl);
+      const tilesHost = gEl.querySelector('.tiles');
+
+      // grid columns responsive
+      tilesHost.style.gridTemplateColumns = 'repeat(auto-fill,minmax(120px,1fr))';
+
+      // render tiles in group order
+      g.ids.forEach(id=>{
+        const t = findTile(id); if(!t) return; const tel = createTileElement(t);
+        // live updater
+        attachLive(tel,t);
+        // events
+        tel.addEventListener('click', ()=>{ if(t.app==='edge') window.WebWindows.openBrowser(); else openApp(t.app); hideStart(); });
+        // drag and drop within group
+        tel.draggable = true;
+        tel.addEventListener('dragstart', (ev)=>{ ev.dataTransfer.setData('text/tile', t.id); tel.classList.add('dragging'); });
+        tel.addEventListener('dragend', ()=>{ tel.classList.remove('dragging'); save(); buildEnhancedStart(); });
+        tilesHost.appendChild(tel);
+      });
+
+      // allow reorder/insert via dragover
+      tilesHost.addEventListener('dragover', (ev)=>{ ev.preventDefault(); const dragging = document.querySelector('.tile.dragging'); if(!dragging) return; const after = getDragAfterElement(tilesHost, ev.clientX, ev.clientY); const draggedId = ev.dataTransfer.getData('text/tile'); if(after==null){ if(!g.ids.includes(draggedId)){
+          // remove from old groups
+          groups.forEach(gr=> gr.ids = gr.ids.filter(x=>x!==draggedId));
+          g.ids.push(draggedId);
+        } else {
+          // move to end
+          g.ids = g.ids.filter(x=>x!==draggedId); g.ids.push(draggedId);
+        }
+      } else {
+        // insert before 'after'
+        const afterId = after.dataset.id; // remove from others
+        groups.forEach(gr=> gr.ids = gr.ids.filter(x=>x!==draggedId));
+        const pos = g.ids.indexOf(afterId);
+        if(pos>=0) g.ids.splice(pos,0,draggedId);
+      }
+      buildEnhancedStart();
+      ev.dataTransfer.dropEffect='move';
+      });
+
+      // rename group
+      gEl.querySelector('.rename-group').addEventListener('click', ()=>{ const name = prompt('Новое имя группы', g.name); if(name){ g.name = name; save(); buildEnhancedStart(); } });
+
+    });
+
+    sm.querySelector('#closeStart').addEventListener('click', hideStart);
+  }
+
+  function hideStart(){ const sm=document.getElementById('startMenu'); sm.classList.remove('open'); setTimeout(()=>sm.style.display='none',300); }
+
+  // utility: get element after pointer for insertion
+  function getDragAfterElement(container, x, y){ const draggableElements = [...container.querySelectorAll('.tile:not(.dragging)')]; let closest = null; let closestOffset = Number.NEGATIVE_INFINITY; for(const child of draggableElements){ const box = child.getBoundingClientRect(); const offset = y - box.top - box.height/2; if(offset>closestOffset && offset<box.height/2){ closestOffset = offset; closest = child; } } return closest;
+  }
+
+  // Live tile behavior (simple): clock, count, random, url
+  function attachLive(el,t){ const live = el.querySelector('.live'); function update(){ if(t.live==='clock') live.textContent = new Date().toLocaleTimeString(); else if(t.live==='count') live.textContent = 'Items: '+(Object.keys(FS['root'].children||{}).length); else if(t.live==='random') live.textContent = 'Val: '+Math.floor(Math.random()*100); else if(t.live==='url') live.textContent = t.url ? t.url.replace(/^https?:\/\//,'') : 'Edge'; else live.textContent=''; }
+    update(); el._liveIv = setInterval(update,1000);
+  }
+
+  // override start button to open enhanced start
+  startBtn.onclick = ()=>{ const sm=document.getElementById('startMenu'); sm.style.display='block'; requestAnimationFrame(()=> sm.classList.add('open')); buildEnhancedStart(); };
+
+  // make sure to clear intervals when rebuilding - handled by rebuild
+  window.WebWindows.addTile = function(cfg){ tiles.push(cfg); groups[0].ids.push(cfg.id); save(); };
+  window.WebWindows.createGroup = function(name){ groups.push({name,ids:[]}); save(); };
+
+})();
+</script>
+</body>
+</html>

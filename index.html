@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Windows 12 beta</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;font-family:Segoe UI,Roboto,Arial,Skype-UI-Symbol,sans-serif;background:#0078d7;color:#fff}
+  #desktop{position:relative;width:100%;height:100vh;overflow:hidden;background:linear-gradient(180deg,#0078d7 0%,#004a8f 100%);}
+  .wallpaper{position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);background-size:40px 40px}
+  .icons{position:absolute;left:12px;top:12px;display:flex;flex-direction:column;gap:12px}
+  .icon{width:84px;color:#fff;text-align:center;cursor:pointer}
+  .icon img{width:48px;height:48px;display:block;margin:0 auto 6px}
+  #taskbar{position:fixed;left:0;right:0;bottom:0;height:48px;background:rgba(10,10,10,0.45);backdrop-filter:blur(6px);display:flex;align-items:center;padding:6px}
+  #startBtn{width:44px;height:36px;margin:0 8px;border-radius:6px;background:transparent;border:0;color:#fff;cursor:pointer}
+  #taskbar .tasks{display:flex;gap:6px;flex:1}
+  .task-btn{min-width:80px;padding:6px 10px;border-radius:6px;background:rgba(255,255,255,0.04);cursor:pointer;position:relative}
+  .task-preview{position:absolute;bottom:56px;left:50%;transform:translateX(-50%);width:240px;height:140px;border-radius:6px;overflow:hidden;background:#fff;color:#000;box-shadow:0 12px 40px rgba(0,0,0,0.5);display:none;z-index:9999}
+  .win{position:absolute;background:#f3f3f3;color:#000;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,0.5);overflow:hidden;display:flex;flex-direction:column;transition:opacity .28s ease, transform .28s cubic-bezier(.2,.9,.2,1),left .18s ease, top .18s ease, width .18s ease, height .18s ease}
+  .win.hidden{opacity:0;transform:scale(0.96)}
+  .titlebar{display:flex;align-items:center;padding:8px 10px;background:linear-gradient(180deg,#e9e9e9,#dcdcdc);cursor:grab}
+  .title{flex:1;font-weight:600}
+  .controls button{margin-left:6px}
+  .content{flex:1;padding:12px;background:#fff;overflow:auto}
+  #startMenu{position:fixed;left:8px;bottom:56px;width:320px;background:#ffffffcc;color:#000;border-radius:8px;padding:10px;box-shadow:0 12px 40px rgba(0,0,0,0.5);display:none}
+  .app-list{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .app-card{padding:8px;border-radius:6px;background:rgba(0,0,0,0.03);cursor:pointer}
+  .file{padding:6px;border-radius:4px;background:rgba(0,0,0,0.02);margin-bottom:6px;display:flex;justify-content:space-between}
+  input,textarea,button{font-family:inherit}
+  @media (max-width:600px){#startMenu{width:90%}}
+  #logonUI{position:fixed;inset:0;background:#0b0f18;display:flex;flex-direction:column;align-items:center;justify-content:center;color:white;font-size:20px;z-index:10000}
+  #logonUI input{padding:10px;font-size:18px;margin-top:12px}
+  #bootScreen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;background:#000;color:#fff;z-index:100000}
+  #bsod{position:fixed;inset:0;background:#01097a;color:#fff;padding:40px;font-size:18px;line-height:1.4;z-index:100001;display:none;font-family:Consolas,monospace;}
+</style>
+</head>
+<body>
+<div id="desktop">
+  <div class="wallpaper"></div>
+  <div class="icons" id="icons">
+    <div class="icon" data-app="explorer"><img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48'><rect rx='4' width='48' height='48' fill='%23ffffff' opacity='0.2'/><path d='M8 14h32v20H8z' fill='%23fff' opacity='0.9'/></svg>"/><div>Проводник</div></div>
+    <div class="icon" data-app="notepad"><img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48'><rect rx='4' width='48' height='48' fill='%23fff' opacity='0.12'/><path d='M12 14h24v2H12zM12 18h24v2H12z' fill='%23fff' opacity='0.9'/></svg>"/><div>Блокнот</div></div>
+    <div class="icon" data-app="calc"><img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48'><rect rx='4' width='48' height='48' fill='%23fff' opacity='0.12'/><circle cx='24' cy='20' r='6' fill='%23fff' opacity='0.9'/></svg>"/><div>Кальк</div></div>
+    <div class="icon" data-app="terminal"><img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48'><rect rx='4' width='48' height='48' fill='%23fff' opacity='0.12'/><path d='M12 18l6 6 6-6' stroke='%23fff' stroke-width='2' fill='none' opacity='0.9'/></svg>"/><div>Терминал</div></div>
+  </div>
+
+  <div id="taskbar">
+    <button id="startBtn">☰</button>
+    <div class="tasks" id="taskContainer"></div>
+    <div style="width:220px;text-align:right;padding-right:8px"> <span id="clock"></span></div>
+  </div>
+
+  <div id="startMenu">
+    <h3>Меню Пуск</h3>
+    <div class="app-list">
+      <div class="app-card" data-app="explorer">Проводник</div>
+      <div class="app-card" data-app="notepad">Блокнот</div>
+      <div class="app-card" data-app="calc">Калькулятор</div>
+      <div class="app-card" data-app="terminal">Терминал</div>
+	  <div class="app-card" data-app="edge">Microsoft Edge (beta)</div>
+      <div class="app-card" id="settingsBtn">Настройки</div>
+      <div class="app-card" id="shutdownBtn">Выключить (reload)</div>
+    </div>
+  </div>
+
+  <div id="previewHost" style="position:fixed;pointer-events:none;display:none;z-index:99998"></div>
+</div>
+
+<div id="bootScreen" style="display:none"></div>
+<div id="logonUI" style="display:none"></div>
+<div id="bsod" style="display:none"></div>
+
+<script>
+/* Full enhanced script (features described in message) */
+const $ = sel => document.querySelector(sel);
+const desktop = $('#desktop');
+const startBtn = $('#startBtn');
+const startMenu = $('#startMenu');
+const taskContainer = $('#taskContainer');
+const clockEl = $('#clock');
+
+let zIndex = 10; let winId = 0; const windows = {};
+
+const FS_KEY = 'webwin_fs_v1'; let FS = JSON.parse(localStorage.getItem(FS_KEY) || '{}');
+if(!FS['root']) FS['root'] = {type:'dir',children:{'readme.txt':{type:'file',content:'Добро пожаловать в WebWindows!\\nСохранение: localStorage.'}}};
+function saveFS(){ localStorage.setItem(FS_KEY, JSON.stringify(FS)); }
+
+const USERS_KEY = 'webwin_users_v1'; let USERS = JSON.parse(localStorage.getItem(USERS_KEY) || '{}');
+if(Object.keys(USERS).length===0){ USERS['user']={password:'pass',displayName:'User',history:[]}; localStorage.setItem(USERS_KEY, JSON.stringify(USERS)); }
+function saveUsers(){ localStorage.setItem(USERS_KEY, JSON.stringify(USERS)); }
+
+function updateClock(){ const d=new Date(); clockEl.textContent = d.toLocaleString(); }
+setInterval(updateClock,1000); updateClock();
+
+startBtn.addEventListener('click', e=>{ startMenu.style.display = startMenu.style.display === 'block' ? 'none' : 'block'; });
+document.addEventListener('click', e=>{ if(!startMenu.contains(e.target) && e.target!==startBtn) startMenu.style.display='none'; });
+
+function initLaunchers(){ document.querySelectorAll('[data-app]').forEach(el=>{ el.addEventListener('dblclick', ()=>openApp(el.dataset.app)); el.addEventListener('click', ()=>{ document.querySelectorAll('.icon').forEach(i=>i.style.outline=''); el.style.outline='2px solid rgba(255,255,255,0.2)'; }); }); document.querySelectorAll('.app-card').forEach(el=>el.addEventListener('click', ()=>openApp(el.dataset.app || el.id.replace('Btn','')))); }
+initLaunchers();
+
+function addTask(title,id){
+  const btn = document.createElement('div');
+  btn.className='task-btn';
+  btn.textContent = title;
+  btn.dataset.win=id;
+  const preview = document.createElement('div');
+  preview.className='task-preview';
+  preview.innerHTML = '<div style="padding:8px;font-size:12px">Preview</div>';
+  btn.appendChild(preview);
+  let previewTimer = null;
+  btn.addEventListener('mouseenter', ()=>{
+    previewTimer = setTimeout(()=> showPreviewFor(id, preview), 250);
+  });
+  btn.addEventListener('mouseleave', ()=>{ clearTimeout(previewTimer); hidePreview(preview); });
+  btn.addEventListener('click', ()=>{ const w = windows[id]; if(!w) return; if(w.minimized){ w.minimized=false; w.el.style.display='flex'; } focusWindow(id); });
+  taskContainer.appendChild(btn);
+}
+function removeTask(id){ const b = taskContainer.querySelector('[data-win="'+id+'"]'); if(b) b.remove(); }
+
+function showPreviewFor(id, previewEl){ const w = windows[id]; if(!w) return; const content = w.el.querySelector('.content'); if(!content) return; previewEl.style.display='block'; previewEl.innerHTML=''; const clone = content.cloneNode(true); clone.style.pointerEvents='none'; clone.style.width='100%'; clone.style.height='100%'; clone.style.overflow='auto'; previewEl.appendChild(clone); }
+function hidePreview(previewEl){ previewEl.style.display='none'; }
+
+function createWindow(title,opts={width:540,height:360,x:80,y:80}){
+  const id = 'win_'+(++winId);
+  const el = document.createElement('div'); el.className='win hidden'; el.style.width = opts.width+'px'; el.style.height = opts.height+'px'; el.style.left = opts.x+'px'; el.style.top = opts.y+'px'; el.style.zIndex = (++zIndex);
+  el.innerHTML = `
+    <div class="titlebar"><div class="title">${title}</div><div class="controls"><button data-action="min">_</button><button data-action="max">▣</button><button data-action="close">✕</button></div></div>
+    <div class="content"></div>
+  `;
+  desktop.appendChild(el);
+  windows[id] = {id,el,title,minimized:false,maximized:false};
+  const titlebar = el.querySelector('.titlebar'); titlebar.addEventListener('pointerdown', startDrag);
+  el.querySelector('[data-action="close"]').addEventListener('click', ()=>closeWindowAnimated(id));
+  el.querySelector('[data-action="min"]').addEventListener('click', ()=>minimizeWindowAnimated(id));
+  el.querySelector('[data-action="max"]').addEventListener('click', ()=>toggleMaximize(id));
+  el.addEventListener('mousedown', ()=>focusWindow(id));
+  addTask(title,id);
+  requestAnimationFrame(()=>{ el.classList.remove('hidden'); el.style.transform = 'scale(0.98)'; setTimeout(()=> el.style.transform='scale(1)',30); });
+  focusWindow(id);
+  return id;
+}
+function focusWindow(id){ const w = windows[id]; if(!w) return; Object.values(windows).forEach(x=>x.el.style.boxShadow='0 8px 30px rgba(0,0,0,0.5)'); w.el.style.zIndex = ++zIndex; w.el.style.boxShadow='0 18px 60px rgba(0,0,0,0.6)'; }
+
+function closeWindowAnimated(id){ const w = windows[id]; if(!w) return; const el = w.el; el.style.transition = 'opacity .28s ease, transform .28s ease'; el.style.opacity='0'; el.style.transform='scale(0.92) translateY(-10px)'; setTimeout(()=>{ el.remove(); delete windows[id]; removeTask(id); }, 300); }
+
+function minimizeWindowAnimated(id){ const w = windows[id]; if(!w) return; const el = w.el;
+  const db = desktop.getBoundingClientRect(); const targetX = db.right - 48 - 12; const targetY = db.bottom - 48 - 12;
+  const rect = el.getBoundingClientRect(); const clone = el.cloneNode(true);
+  clone.style.position='fixed'; clone.style.left=rect.left+'px'; clone.style.top=rect.top+'px'; clone.style.width=rect.width+'px'; clone.style.height=rect.height+'px'; clone.style.margin=0; clone.style.zIndex=99999; clone.style.transition='transform .45s cubic-bezier(.2,.9,.2,1), opacity .45s ease'; document.body.appendChild(clone);
+  const dx = targetX - rect.left; const dy = targetY - rect.top;
+  clone.style.transform = 'translate('+dx+'px,'+dy+'px) scale(0.08)'; clone.style.opacity='0.2';
+  setTimeout(()=>{ clone.remove(); el.style.display='none'; w.minimized=true; },460);
+}
+function minimizeWindow(id){ minimizeWindowAnimated(id); }
+
+function toggleMaximize(id){ const w = windows[id]; if(!w) return; if(!w.maximized){ w.prev = {left:w.el.style.left,top:w.el.style.top,width:w.el.style.width,height:w.el.style.height}; w.el.style.left='0px'; w.el.style.top='0px'; w.el.style.width='100%'; w.el.style.height='calc(100vh - 56px)'; w.maximized=true; } else { w.el.style.left = w.prev.left; w.el.style.top = w.prev.top; w.el.style.width = w.prev.width; w.el.style.height = w.prev.height; w.maximized=false; } }
+
+function startDrag(e){ const winEl = this.closest('.win'); const id = Object.keys(windows).find(k=>windows[k].el===winEl); focusWindow(id);
+  const rect = winEl.getBoundingClientRect(); const ox = e.clientX - rect.left; const oy = e.clientY - rect.top;
+  function move(ev){ winEl.style.left = (ev.clientX - ox) + 'px'; winEl.style.top = (ev.clientY - oy) + 'px'; }
+  function up(){ window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); winEl.style.cursor='default'; }
+  window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+}
+
+function openApp(name){ if(name==='explorer') openExplorer(); if(name==='notepad') openNotepad(); if(name==='calc') openCalc(); if(name==='terminal') openTerminal(); if(name==='settings') openSettings(); if(name==='shutdownBtn') location.reload(); }
+
+function openExplorer(){ const id = createWindow('Проводник',{width:640,height:480,x:120,y:80}); const content = windows[id].el.querySelector('.content');
+  function render(){ content.innerHTML=''; const ops = document.createElement('div'); ops.style.marginBottom='8px';
+    const newFile = document.createElement('button'); newFile.textContent='Создать файл'; newFile.addEventListener('click', ()=>{ const fname = prompt('Имя файла'); if(!fname) return; FS['root'].children[fname]={type:'file',content:''}; saveFS(); render(); });
+    const newFolder = document.createElement('button'); newFolder.textContent='Создать папку'; newFolder.addEventListener('click', ()=>{ const fname = prompt('Имя папки'); if(!fname) return; FS['root'].children[fname]={type:'dir',children:{}}; saveFS(); render(); });
+    ops.appendChild(newFile); ops.appendChild(newFolder); content.appendChild(ops);
+    const list = document.createElement('div'); const entries = Object.entries(FS['root'].children||{});
+    if(entries.length===0) list.innerHTML='<em>Пусто</em>';
+    entries.forEach(([name,node])=>{
+      const el = document.createElement('div'); el.className='file'; el.innerHTML = `<div style="display:flex;gap:8px;align-items:center"><span>${node.type==='dir'?'📁':'📄'}</span><div>${name}</div></div><div>${node.type}</div>`;
+      el.addEventListener('dblclick', ()=>{ if(node.type==='file') openNotepad(name,node.content); else { const id2 = createWindow('Папка: '+name,{width:520,height:380,x:200,y:140}); const c2 = windows[id2].el.querySelector('.content'); function renderFolder(folder){ c2.innerHTML=''; const back=document.createElement('button'); back.textContent='Назад'; back.addEventListener('click', ()=> c2.innerHTML=''); c2.appendChild(back); const filelist=document.createElement('div'); Object.entries(folder.children||{}).forEach(([n,nd])=>{ const fe=document.createElement('div'); fe.className='file'; fe.innerHTML=`<div>${n}</div><div>${nd.type}</div>`; fe.addEventListener('dblclick', ()=>{ if(nd.type==='file') openNotepad(n, nd.content); else renderFolder(nd); }); filelist.appendChild(fe); }); c2.appendChild(filelist); } renderFolder(node); } });
+      const actions = document.createElement('div'); const del = document.createElement('button'); del.textContent='Удалить'; del.addEventListener('click', ()=>{ if(confirm('Удалить '+name+'?')){ delete FS['root'].children[name]; saveFS(); render(); } }); actions.appendChild(del); el.appendChild(actions); list.appendChild(el);
+    }); content.appendChild(list);
+  }
+  render();
+}
+
+function openNotepad(name='Новый файл', contentText=''){ const id = createWindow(name,{width:560,height:420,x:160,y:120}); const content = windows[id].el.querySelector('.content'); content.innerHTML = `<div style="display:flex;flex-direction:column;height:100%"><textarea style="flex:1;width:100%;min-height:180px;padding:8px" placeholder="Введите текст...">${contentText}</textarea><div style="display:flex;gap:8px;margin-top:8px"><button id='saveFile'>Сохранить в FS</button><button id='close'>Закр</button></div></div>`; const ta = content.querySelector('textarea'); content.querySelector('#saveFile').addEventListener('click', ()=>{ const fname = prompt('Имя файла для сохранения','note.txt'); if(!fname) return; FS['root'].children[fname]={type:'file',content:ta.value}; saveFS(); alert('Сохранено: '+fname); }); content.querySelector('#close').addEventListener('click', ()=>closeWindowAnimated(id)); }
+
+function openCalc(){ const id = createWindow('Калькулятор',{width:320,height:420,x:220,y:140}); const content = windows[id].el.querySelector('.content'); content.innerHTML = `<div><input id='calcIn' style='width:100%;padding:8px;font-size:18px'/><div style='display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px'>${['7','8','9','/','4','5','6','*','1','2','3','-','0','.','=','+'].map(x=>`<button class='btn'>${x}</button>`).join('')}</div></div>`; const input = content.querySelector('#calcIn'); content.querySelectorAll('.btn').forEach(b=>b.addEventListener('click', ()=>{ if(b.textContent==='='){ try{ input.value = eval(input.value); }catch(e){ alert('Ошибка'); } } else input.value += b.textContent; })); }
+
+function openTerminal(){ const id = createWindow('Терминал',{width:560,height:320,x:260,y:160}); const content = windows[id].el.querySelector('.content'); content.innerHTML = `<div style='display:flex;flex-direction:column;height:100%'><div id='out' style='flex:1;background:#000;color:#0f0;padding:8px;overflow:auto;font-family:monospace'></div><div style='display:flex;gap:6px;margin-top:8px'><input id='cmd' style='flex:1' placeholder='help'/><button id='run'>Run</button></div></div>`; const out = content.querySelector('#out'), cmd = content.querySelector('#cmd'); function run(){ const v = cmd.value.trim(); if(!v) return; out.innerHTML += `> ${v}\\n`; if(v==='help') out.innerHTML += 'help: ls cat clear date\\n'; else if(v==='ls') out.innerHTML += Object.keys(FS['root'].children||{}).join('\\n')+'\\n'; else if(v.startsWith('cat ')){ const name=v.slice(4); const file=FS['root'].children[name]; out.innerHTML += (file?file.content:'Файл не найден')+'\\n'; } else if(v==='clear') out.innerHTML=''; else if(v==='date') out.innerHTML += new Date().toString()+'\\n'; else out.innerHTML += 'Неизвестная команда\\n'; out.scrollTop = out.scrollHeight; } content.querySelector('#run').addEventListener('click', run); cmd.addEventListener('keydown', e=>{ if(e.key==='Enter') run(); });
+  const checkDanger = (v)=>{ if(!v) return; const low = v.toLowerCase().replace(/\\s+/g,' '); if(low.includes('clear c:/') || low.includes('format c:') || low.includes('del c:')){ showBSOD('Critical disk clear'); } };
+  content.querySelector('#run').addEventListener('click', ()=>checkDanger(cmd.value)); cmd.addEventListener('keydown', e=>{ if(e.key==='Enter') checkDanger(cmd.value); }); }
+
+function openSettings(){ const id = createWindow('Настройки',{width:420,height:320,x:180,y:160}); const content = windows[id].el.querySelector('.content'); content.innerHTML = `
+    <div>
+      <label>Тема: <select id='theme'><option value='blue'>Синий</option><option value='dark'>Тёмная</option></select></label>
+      <div style='margin-top:10px'><button id='clearFS'>Очистить FS</button></div>
+    </div>
+  `; content.querySelector('#clearFS').addEventListener('click', ()=>{ if(confirm('Очистить виртуальную файловую систему?')){ FS={'root':{type:'dir',children:{}}}; saveFS(); alert('FS очищена'); }}); content.querySelector('#theme').addEventListener('change', (e)=>{ if(e.target.value==='dark'){ document.documentElement.style.setProperty('--bg','#111'); document.body.style.background='#111'; } else { document.body.style.background=''; } }); }
+
+document.addEventListener('keydown', e=>{ if(e.key==='Meta') { startMenu.style.display = startMenu.style.display==='block'?'none':'block'; } if(e.altKey && e.key==='Tab'){ const keys = Object.keys(windows); if(keys.length>1){ focusWindow(keys[1]); } } });
+
+window.WebWindows = {openApp, createWindow, FS, saveFS};
+
+const bootEl = document.getElementById('bootScreen'); const logonEl = document.getElementById('logonUI'); const bsodEl = document.getElementById('bsod');
+
+function generateQRGrid(text){ let s=''; let h=0; for(let i=0;i<text.length;i++) h = (h*31 + text.charCodeAt(i))>>>0; for(let y=0;y<12;y++){ for(let x=0;x<12;x++){ const v = ((h >> ((x+y)%24)) & 1); s += `<div style="width:8px;height:8px;background:${v?"#000":"#fff"}"></div>`; } } return s; }
+
+function showBSOD(reason){ const stopCode = '0xDEADCAFE'; bsodEl.innerHTML = `
+  <div style='font-size:50px;margin-bottom:12px'>:(</div>
+  <div style='font-size:22px;margin-bottom:12px'>Система столкнулась с проблемой</div>
+  <div>Ваш компьютер был остановлен для предотвращения повреждения.</div>
+  <div style='margin-top:18px'>Stop code: <b>${stopCode}</b></div>
+  <div style='margin-top:12px'>For more information about this issue and possible fixes, visit https://microsoft.com/ and search for the stop code.</div>
+  <div style='margin-top:18px;display:flex;gap:18px;align-items:center'>
+    <div style='width:120px;height:120px;background:#fff;display:grid;grid-template-columns:repeat(12,8px);grid-auto-rows:8px'>${generateQRGrid(stopCode)}</div>
+    <div>Collecting some error info and then we'll restart for you.</div>
+  </div>`; bsodEl.style.display='block'; setTimeout(()=>{ bsodEl.style.opacity='0'; bsodEl.style.transition='opacity .6s ease'; setTimeout(()=> location.reload(),700); },6000); }
+
+(function bootSequence(){
+  bootEl.innerHTML = `<div style='text-align:center;color:#fff'><div style='font-size:40px;margin-bottom:18px'>Windows</div><div style='width:120px;height:120px;border-radius:50%;border:6px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center'><div style='width:18px;height:18px;border-radius:50%;background:#fff;animation:boot-spin 1s linear infinite'></div></div></div><style>@keyframes boot-spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}</style>`;
+  bootEl.style.display='flex';
+  logonEl.innerHTML = `
+    <div style='text-align:center'>
+      <div style='font-size:28px;margin-bottom:8px'>Windows 12</div>
+      <div id='userList' style='display:flex;gap:8px;justify-content:center;margin-bottom:12px'></div>
+      <input id='pwd' type='password' placeholder='Пароль' style='padding:10px;margin-bottom:8px'/>
+      <div><button id='loginBtn'>Войти</button> <button id='addUserBtn'>Добавить пользователя</button></div>
+    </div>
+  `;
+  function renderUsers(){ const ul = document.getElementById('userList'); ul.innerHTML=''; Object.keys(USERS).forEach(u=>{ const b=document.createElement('button'); b.textContent = USERS[u].displayName || u; b.dataset.user=u; b.addEventListener('click', ()=>{ document.getElementById('pwd').focus(); selectedUser = u; Array.from(ul.children).forEach(ch=>ch.style.outline=''); b.style.outline='2px solid rgba(255,255,255,0.2)'; }); ul.appendChild(b); }); }
+  let selectedUser = Object.keys(USERS)[0]; renderUsers();
+  function loginUser(u){ const now = new Date().toISOString(); USERS[u].history = USERS[u].history || []; USERS[u].history.push({when:now}); saveUsers(); try{ bootEl.remove(); }catch(e){} try{ logonEl.remove(); }catch(e){} }
+  document.addEventListener('click', function onDoc(e){ if(e.target && e.target.id==='loginBtn'){ const pwd = document.getElementById('pwd').value; if(USERS[selectedUser] && USERS[selectedUser].password===pwd){ loginUser(selectedUser); document.removeEventListener('click', onDoc); } else { alert('Неверный пароль'); } } if(e.target && e.target.id==='addUserBtn'){ const name = prompt('Имя пользователя (логин)'); if(!name) return; const pwd = prompt('Пароль'); if(pwd===null) return; USERS[name] = {password:pwd,displayName:name,history:[]}; saveUsers(); renderUsers(); alert('Пользователь добавлен'); } });
+  const auto = localStorage.getItem('webwin_autologin'); if(auto && USERS[auto]){ setTimeout(()=>{ loginUser(auto); }, 1200); } else { setTimeout(()=>{ bootEl.style.opacity='0'; bootEl.style.transition='opacity .4s ease'; setTimeout(()=>{ bootEl.remove(); logonEl.style.display='flex'; renderUsers(); },420); }, 1400); }
+})();
+</script>
+</body>
+</html>
