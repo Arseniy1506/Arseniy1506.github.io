@@ -28,7 +28,7 @@
             overflow-x: auto;
             position: absolute;
             top: 0; left: 0;
-            z-index: 9999; /* Поверх всего */
+            z-index: 9999;
             
             /* Анимация появления Пуска */
             opacity: 1;
@@ -38,7 +38,7 @@
         }
         
         #start-screen.hidden {
-            transform: scale(1.1); /* Эффект зума при исчезновении */
+            transform: scale(1.1);
             opacity: 0;
             pointer-events: none;
         }
@@ -64,10 +64,8 @@
             display: flex;
             flex-direction: column;
             justify-content: flex-end;
-            /* Анимация плиток при загрузке */
             animation: tilePop 0.4s backwards;
         }
-        /* Задержка анимации для каждой плитки */
         .tile:nth-child(1) { animation-delay: 0.05s; }
         .tile:nth-child(2) { animation-delay: 0.1s; }
         .tile:nth-child(3) { animation-delay: 0.15s; }
@@ -95,6 +93,7 @@
         /* --- DESKTOP --- */
         #desktop {
             width: 100%; height: 100%;
+            /* Ваши новые обои */
             background: url('https://i.pinimg.com/736x/86/48/ca/8648cac82a49a1a14f09c82ea416d609.jpg') center/cover;
             position: absolute; top: 0; left: 0; z-index: 50;
             overflow: hidden;
@@ -139,7 +138,6 @@
             overflow: hidden;
             color: black;
             
-            /* Animation transitions */
             transition: 
                 transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94), 
                 opacity 0.2s ease,
@@ -150,25 +148,18 @@
             transform-origin: center center;
         }
 
-        /* Состояние: Открытие (класс удаляется после анимации) */
         .window.opening { transform: scale(0.9); opacity: 0; }
-        
-        /* Состояние: Закрытие */
         .window.closing { transform: scale(0.95); opacity: 0; pointer-events: none; }
-
-        /* Состояние: Свернуто (летит вниз и исчезает) */
         .window.minimized {
             transform: translateY(200px) scale(0.7);
             opacity: 0;
             pointer-events: none;
         }
-
-        /* Состояние: Развернуто на весь экран */
         .window.maximized {
             top: 0 !important;
             left: 0 !important;
             width: 100% !important;
-            height: calc(100% - 40px) !important; /* Учет таскбара */
+            height: calc(100% - 40px) !important;
             resize: none;
             border: none;
         }
@@ -291,7 +282,7 @@
                 <i class="fa-brands fa-edge"></i>
                 <span>Edge</span>
             </div>
-            </div>
+        </div>
 
         <div id="window-area"></div>
         
@@ -300,7 +291,7 @@
                 <i class="fa-brands fa-windows"></i>
             </div>
             <div class="task-container" id="task-container">
-                </div>
+            </div>
             
             <div style="margin-left: auto; color: white; padding-right: 15px; font-size: 12px; text-align: center; cursor: default;">
                 <div id="clock-time">12:00</div>
@@ -387,17 +378,6 @@
                     </div>
                 `
             },
-            'stream': {
-                title: 'Test',
-                icon: 'fa-display',
-                w: 800, h: 500,
-                init: initStream,
-                content: `
-                    <div style="padding: 20px; text-align: center; height: 100%; display: flex; flex-direction: column; background:#111; color:white;">
-                        <p>Test</p>
-                    </div>
-                `
-            },
             'explorer': {
                 title: 'Проводник',
                 icon: 'fa-folder-open',
@@ -424,10 +404,10 @@
                         </div>
                     </div>
                 </div>`
-            }
+            }, 
             'trash': {
                 title: 'Корзина',
-                icon: 'fa-folder-open',
+                icon: 'fa-trash-can',
                 w: 700, h: 450,
                 content: `
                 <div style="display:flex; height:100%;">
@@ -459,7 +439,7 @@
             }
         }, 1000);
 
-        // --- CORE FUNCTIONS (ИСПРАВЛЕНО ЗДЕСЬ) ---
+        // --- CORE FUNCTIONS ---
 
         function toggleStart() {
             const start = document.getElementById('start-screen');
@@ -468,30 +448,29 @@
             if (isStartOpen) {
                 // ОТКРЫТИЕ
                 start.classList.remove('hidden');
-                // Небольшая задержка, чтобы браузер успел отрисовать удаление класса перед анимацией
                 setTimeout(() => {
                    start.style.transform = "scale(1)";
                    start.style.opacity = "1";
                 }, 10);
             } else {
-                // ЗАКРЫТИЕ (Исправлено)
+                // ЗАКРЫТИЕ
                 start.classList.add('hidden');
-                
-                // ВАЖНО: Сбрасываем инлайн-стили, чтобы сработал CSS класс .hidden
                 start.style.transform = "";
                 start.style.opacity = "";
             }
         }
 
         function goToDesktop() {
-            // Если меню открыто, закрываем его
             if(isStartOpen) toggleStart();
         }
 
         function openApp(appId) {
             goToDesktop();
-            const app = apps[appId];
-            createWindow(appId, app);
+            if (apps[appId]) {
+                createWindow(appId, apps[appId]);
+            } else {
+                alert('Приложение не найдено: ' + appId);
+            }
         }
 
         function createWindow(id, appData) {
@@ -702,7 +681,3 @@
     </script>
 </body>
 </html>
-
-
-
-
