@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Windows 8.1 Pro Web</title>
+    <title>Windows 12 (Web Prototype)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -235,7 +235,7 @@
 
     <div id="start-screen">
         <div class="user-info">
-            <span>Администратор</span>
+            <span>User</span>
             <div class="avatar"><i class="fa-solid fa-user"></i></div>
             <i class="fa-solid fa-power-off" style="margin-left: 10px; cursor: pointer;" title="Выключение"></i>
         </div>
@@ -257,9 +257,9 @@
                 <i class="fa-solid fa-palette"></i>
                 <div class="tile-label">Paint</div>
             </div>
-            <div class="tile bg-dark wide" onclick="openApp('stream')">
+            <div class="tile bg-dark wide" onclick="goToDesktop()">
                 <i class="fa-solid fa-display"></i>
-                <div class="tile-label">Трансляция Экрана</div>
+                <div class="tile-label">Test</div>
             </div>
             <div class="tile" style="background: #eeb90d" onclick="openApp('explorer')">
                 <i class="fa-solid fa-folder-open"></i>
@@ -388,7 +388,7 @@
                          <div style="margin-bottom:5px;"><i class="fa-solid fa-star"></i> Избранное</div>
                          <div style="margin-bottom:5px; color:#2d89ef;"><i class="fa-solid fa-computer"></i> Компьютер</div>
                          <div style="margin-left: 15px;">📁 Локальный диск (C:)</div>
-                         <div style="margin-left: 15px;">📁 Данные (D:)</div>
+                         <div style="margin-left: 15px;">📁 Секретики (D:)</div>
                     </div>
                     <div style="flex:1; padding: 10px; background: white;">
                         <h3>Этот компьютер</h3>
@@ -415,7 +415,7 @@
                          <div style="margin-bottom:5px;"><i class="fa-solid fa-star"></i> Избранное</div>
                          <div style="margin-bottom:5px; color:#2d89ef;"><i class="fa-solid fa-computer"></i> Компьютер</div>
                          <div style="margin-left: 15px;">📁 Локальный диск (C:)</div>
-                         <div style="margin-left: 15px;">📁 Данные (D:)</div>
+                         <div style="margin-left: 15px;">📁 Секретики (D:)</div>
                     </div>
                     <div style="flex:1; padding: 10px; background: white;">
                         <h3>Корзина</h3>
@@ -681,3 +681,4 @@
     </script>
 </body>
 </html>
+
